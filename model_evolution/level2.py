@@ -22,9 +22,6 @@ def tokenize_texts(texts):
     return word_to_index
 
 
-#toenize 
-texts = [conversation['body'] for conversation in data]
-
 # Sequence Generation
 def generate_sequences(texts, word_to_index):
     sequences = []
@@ -95,7 +92,7 @@ except:
 model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
 
 # Train the model
-model.fit([input_data, input_data], target_data, batch_size=64, epochs=10, validation_split=0.2)
+model.fit([input_data, input_data], target_data, batch_size=32, epochs=10, validation_split=0.2)
 
 # Save
 model.save_weights('model_weights.h5')

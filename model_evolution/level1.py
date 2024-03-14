@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras.preprocessing.text import Tokenizer
-from tensorflow.keras.preprocessing.sequence import pad_sequences
+from keras.preprocessing.sequence import pad_sequences
 from pymongo import MongoClient
 
 # Connect to MongoDB
@@ -49,4 +49,4 @@ model = tf.keras.Model([encoder_inputs, decoder_inputs], decoder_outputs)
 model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
 
 # Train the model
-model.fit([input_data, input_data], target_data, batch_size=8, epochs=10, validation_split=0.2)
+model.fit([input_data, input_data], target_data, batch_size=32, epochs=10, validation_split=0.2)

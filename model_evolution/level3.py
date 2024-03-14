@@ -1,15 +1,6 @@
 import numpy as np
 import tensorflow as tf
-from keras.preprocessing.sequence import pad_sequences
-from pymongo import MongoClient
-
-# load data
-client = MongoClient('mongodb://127.0.0.1:27017/')
-db = client['reddit_dataset']
-collection = db['comments_chunk_1']
-data = collection.find()
-print("Connected and got the data set...")
-
+from keras.preprocessing.sequence import pad_sequences as keras_pad_sequences
 
 def tokenize_texts(texts):
     word_to_index = {}
@@ -21,11 +12,6 @@ def tokenize_texts(texts):
                 index += 1
     return word_to_index
 
-
-#toenize 
-texts = [conversation['body'] for conversation in data]
-
-# Sequence Generation
 def generate_sequences(texts, word_to_index):
     sequences = []
     for text in texts:
@@ -35,9 +21,7 @@ def generate_sequences(texts, word_to_index):
         sequences.append(sequence)
     return sequences
 
-
-# Padding
-def pad_sequences(sequences, max_seq_length):
+def custom_pad_sequences(sequences, max_seq_length):
     padded_sequences = np.zeros((len(sequences), max_seq_length), dtype=np.int32)
     for i, sequence in enumerate(sequences):
         if len(sequence) > max_seq_length:
@@ -46,18 +30,19 @@ def pad_sequences(sequences, max_seq_length):
             padded_sequences[i, :len(sequence)] = sequence
     return padded_sequences
 
+# Define global variables
+max_seq_length = 100
+
 # Preprocess data
-texts = [conversation['body'] for conversation in data]
+texts = ["How are you?"]
 word_to_index = tokenize_texts(texts)
 sequences = generate_sequences(texts, word_to_index)
-max_seq_length = 100
-padded_sequences = pad_sequences(sequences, max_seq_length)
+padded_sequences = custom_pad_sequences(sequences, max_seq_length)
 print("Preprocess complete...")
 
-
 # input-output pairs for seq2seq model
-input_data = padded_sequences[:, :-1]
-target_data = padded_sequences[:, 1:]
+input_data = keras_pad_sequences(padded_sequences[:, :-1], maxlen=max_seq_length - 1, padding='post')
+target_data = keras_pad_sequences(padded_sequences[:, 1:], maxlen=max_seq_length - 1, padding='post')
 vocab_size = len(word_to_index) + 1
 print("Done with input-output pairs for seq2seq model...")
 
@@ -94,38 +79,29 @@ except:
 # Compile the model
 model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
 
-# Train the model
-model.fit([input_data, input_data], target_data, batch_size=64, epochs=10, validation_split=0.2)
+predictions = model.predict([input_data, target_data])
 
-# Save
-model.save_weights('model_weights.h5')
+# Define index_to_word dictionary
+index_to_word = {index: word for word, index in word_to_index.items()}
+
+def decode_sequence(sequence, index_to_word):
+    decoded_words = []
+    for token in sequence:
+        if np.isscalar(token):
+            if token != 0:
+                word = index_to_word.get(token, '')
+                decoded_words.append(word)
+        else:
+            for idx in token:
+                if idx != 0:
+                    word = index_to_word.get(idx, '')
+                    decoded_words.append(word)
+    return ' '.join(decoded_words)
 
 
-# text to test the model
-input_text = "How are you?"
-input_sequence = generate_sequences([input_text])
-input_sequence = pad_sequences(input_sequence, maxlen=max_seq_length - 1, padding='post')
 
-# Encode the input sequence
-encoder_input = input_sequence
-encoder_output, state_h_enc, state_c_enc = encoder_lstm(encoder_embedding(encoder_input))
-encoder_states = [state_h_enc, state_c_enc]
+decoded_predictions = [decode_sequence(seq, index_to_word) for seq in predictions]
 
-# Initialize the decoder input with a start token
-decoder_input = np.zeros((1, max_seq_length - 1))
-decoder_input[0, 0] = tokenizer.word_index['<start>']
-
-# output sequence
-output_sequence = []
-for _ in range(max_seq_length - 1):
-    decoder_output, state_h_dec, state_c_dec = decoder_lstm(decoder_embedding(decoder_input), initial_state=encoder_states)
-    decoder_output = decoder_dense(decoder_output)
-    decoder_input[0, 1:] = np.argmax(decoder_output, axis=-1)
-    encoder_states = [state_h_dec, state_c_dec]
-    output_sequence.append(np.argmax(decoder_output, axis=-1)[0, 0])
-
-# Decode the output sequence into text
-output_text = tokenizer.sequences_to_texts([output_sequence])
-
-print("Input Text:", input_text)
-print("Generated Text:", output_text)
+for i, input_text in enumerate(texts):
+    print("Input Text:", input_text)
+    print("Generated Text:", decoded_predictions[i])
