@@ -1,6 +1,5 @@
 import numpy as np
 import tensorflow as tf
-from keras.preprocessing.sequence import pad_sequences
 from pymongo import MongoClient
 
 # load data
@@ -58,6 +57,9 @@ target_data = padded_sequences[:, 1:]
 vocab_size = len(word_to_index) + 1
 print("Done with input-output pairs for seq2seq model...")
 
+# 
+# 
+# 
 # Define seq2seq model
 embedding_dim = 128
 units = 256
@@ -80,6 +82,9 @@ decoder_outputs = decoder_dense(decoder_outputs)
 
 # Define model
 model = tf.keras.Model([encoder_inputs, decoder_inputs], decoder_outputs)
+# 
+# 
+# 
 
 # Load weights
 try:
