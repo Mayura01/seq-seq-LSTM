@@ -71,7 +71,7 @@ model = tf.keras.Model([encoder_inputs, decoder_inputs], decoder_outputs)
 
 # Load weights
 try:
-    model.load_weights('model_weights.h5')
+    model.load('M68.h5')
     print("Loaded model weights successfully...")
 except:
     print("No existing model weights found...")
