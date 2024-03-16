@@ -81,15 +81,15 @@ def main():
     
     model = build_model(vocab_size, embedding_dim, units)
 
-    try:
-        model = tf.keras.models.load_model('M68.h5')
-        print("Loaded model successfully...")
-    except OSError:
-        print("No existing model found. Training a new model...")
+    # try:
+    #     model = tf.keras.models.load_model('M68.keras')
+    #     print("Loaded model successfully...")
+    # except OSError:
+    #     print("No existing model found. Training a new model...")
 
     train_model(model, input_data, target_data)
 
-    model.save('M68.h5')
+    model.save('M68.keras')
     print("Model saved after training chunk", 1)
 
 if __name__ == "__main__":

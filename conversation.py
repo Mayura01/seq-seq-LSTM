@@ -1,86 +1,73 @@
-import numpy as np
 import tensorflow as tf
-from keras.preprocessing.sequence import pad_sequences as keras_pad_sequences
+from pymongo import MongoClient
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+from tensorflow.keras.preprocessing.text import Tokenizer
 
-# Define the custom layer
-class NotEqual(tf.keras.layers.Layer):
-    def call(self, inputs):
-        return tf.not_equal(inputs[0], inputs[1])
-
-# Register the custom object
-tf.keras.utils.get_custom_objects()['NotEqual'] = NotEqual
-
-# Debugging prints
-print("Custom layer registered.")
-
-# Load the model
+# Load the trained model
 model = tf.keras.models.load_model('M68.h5')
 
-# Debugging prints
-print("Model loaded successfully.")
+def load_data(chunk_number, chunk_size):
+    client = MongoClient('mongodb://127.0.0.1:27017/')
+    db = client['reddit_dataset']
+    collection = db['comments_chunk_' + str(chunk_number)]
+    data = collection.find().limit(chunk_size)
+    
+    input_data = []
+    for conversation in data:
+        input_data.append(conversation['body'])
+    
+    return input_data
 
-def tokenize_texts(texts):
-    word_to_index = {}
-    index = 1
-    for text in texts:
-        for word in text.split():
-            if word.lower() not in word_to_index:
-                word_to_index[word.lower()] = index
-                index += 1
+def preprocess_data(texts):
+    tokenizer = Tokenizer()
+    tokenizer.fit_on_texts(texts)
+    word_to_index = tokenizer.word_index 
     return word_to_index
 
-def generate_sequences(texts, word_to_index):
-    sequences = []
-    for text in texts:
-        sequence = []
-        for word in text.split():
-            sequence.append(word_to_index.get(word.lower(), 0))
-        sequences.append(sequence)
-    return sequences
+def load_and_preprocess_data(chunk_number, chunk_size, max_seq_length):
+    input_data = load_data(chunk_number, chunk_size)
+    word_to_index = preprocess_data(input_data, max_seq_length)
+    return word_to_index
 
-def custom_pad_sequences(sequences, max_seq_length):
-    padded_sequences = np.zeros((len(sequences), max_seq_length), dtype=np.int32)
-    for i, sequence in enumerate(sequences):
-        if len(sequence) > max_seq_length:
-            padded_sequences[i, :] = sequence[:max_seq_length]
-        else:
-            padded_sequences[i, :len(sequence)] = sequence
-    return padded_sequences
+# Function to preprocess input text
+def preprocess_input_text(input_text, word_to_index, max_seq_length):
+    # Tokenize input text
+    input_sequence = [word_to_index.get(word, 0) for word in input_text.split()]
+    # Pad sequences to fixed length
+    input_sequence = pad_sequences([input_sequence], maxlen=max_seq_length, padding='post')
+    return input_sequence
 
-example_conversations = [
-    "Hi there!",
-    "How are you?",
-    "What are you up to?",
-    "I'm just coding. How about you?",
-    "I'm reading a book.",
-    "That sounds interesting."
-]
-
-word_to_index = tokenize_texts(example_conversations)
-index_to_word = {index: word for word, index in word_to_index.items()}
-
-# encode input text
-def encode_input_text(input_text, word_to_index, max_seq_length):
-    input_sequence = [word_to_index.get(word.lower(), 0) for word in input_text.split()]
-    padded_input_sequence = keras_pad_sequences([input_sequence], maxlen=max_seq_length - 1, padding='post')
-    return padded_input_sequence
-
-# decode output sequence
-def decode_output_sequence(output_sequence, index_to_word):
-    decoded_words = [index_to_word[idx] for idx in output_sequence if idx != 0]
-    decoded_text = ' '.join(decoded_words)
-    return decoded_text
-
+# Function to decode output tokens
+def decode_output_tokens(output_tokens, index_to_word):
+    decoded_output = ' '.join([index_to_word[token] for token in output_tokens if token != 0])
+    return decoded_output
 
 max_seq_length = 100
-while True:
-    user_input = input("You: ")
-    if user_input.lower() == 'exit':
+word_to_index = load_and_preprocess_data(1, 25000, max_seq_length)
+
+# Reverse the word_to_index dictionary to create index_to_word
+index_to_word = {index: word for word, index in word_to_index.items()}
+
+# Preprocess input text (assuming input_text is a string)
+input_text = "Hello"
+input_sequence = preprocess_input_text(input_text, word_to_index, max_seq_length)
+
+# Initialize variables for decoding loop
+max_output_length = 50  # Maximum length of the output sequence
+decoded_tokens = []
+
+# Perform inference
+output_sequence = tf.fill((1, 1), word_to_index['<start>']) # Start token for decoder
+
+for _ in range(max_output_length):
+    # Perform inference for one timestep
+    output_logits, h, c = model([input_sequence, output_sequence])
+    predicted_token = tf.argmax(output_logits[0, -1]).numpy()
+    if predicted_token == word_to_index['<end>']:
         break
-    
-    encoded_input = encode_input_text(user_input, word_to_index, max_seq_length)
-    predicted_output = model.predict([encoded_input, encoded_input])
-    output_sequence = np.argmax(predicted_output[0], axis=-1)
-    decoded_response = decode_output_sequence(output_sequence, index_to_word)
-    
-    print("Bot:", decoded_response)
+    decoded_tokens.append(predicted_token)
+    output_sequence = tf.concat([output_sequence, [[predicted_token]]], axis=-1)
+
+# Post-process output tokens to get response
+response = decode_output_tokens(decoded_tokens, index_to_word)
+print("Model response:", response)
