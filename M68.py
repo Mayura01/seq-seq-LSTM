@@ -75,6 +75,12 @@ decoder_outputs = decoder_dense(decoder_outputs)
 
 model = tf.keras.Model([encoder_inputs, decoder_inputs], decoder_outputs)
 
+try:
+    model = tf.keras.models.load_model('M68.keras')
+    print("Loaded model successfully...")
+except OSError:
+    print("No existing model found. Training a new model...")
+
 # Compile the model
 model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
 
@@ -83,3 +89,4 @@ model.fit([input_data, input_data], target_data, batch_size=16, epochs=1, valida
 
 # Save the model
 model.save('M68.keras')
+print("Model saved after training chunk")
