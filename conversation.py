@@ -37,21 +37,24 @@ def generate_text(input_text, word_to_index, index_to_word):
     decoder_input = np.zeros((1, max_seq_length - 1), dtype=np.int32)
     decoder_input[0, 0] = word_to_index['<start>']
     
-
     for i in range(1, max_seq_length - 1):
         predictions = model.predict([np.array([input_sequence]), np.array(decoder_input)]).argmax(axis=-1)
         decoder_input[0, i] = predictions[0, i - 1]
 
-        if predictions[0, i - 1] == word_to_index['<end>']:
+        if predictions[0, i - 1] == word_to_index['<end>'] or i == max_seq_length - 2:
             break
     
-    generated_text = ' '.join([index_to_word[index] for index in decoder_input[0] if index != 0])
+    # Include the predicted tokens in the generated text
+    generated_text_indices = [index for index in decoder_input[0] if index != 0]  # Exclude padding
+    generated_text = ' '.join([index_to_word[index] for index in generated_text_indices if index != word_to_index['<start>']])  # Exclude <start>
     return generated_text
+
 
 input_text = ''
 
 while input_text != 'exit':
     input_text = input("you: ")
     generated_text = generate_text(input_text, word_to_index, index_to_word)
+    print("Mayur: ",input_text)
     print("IntelliAi: ",generated_text)
 

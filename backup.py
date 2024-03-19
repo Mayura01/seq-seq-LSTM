@@ -5,7 +5,7 @@ from pymongo import MongoClient
 # Load data
 client = MongoClient('mongodb://127.0.0.1:27017/')
 db = client['reddit_dataset']
-collection = db['comments_chunk_2']
+collection = db['comments_chunk_1']
 data = collection.find()
 print("Connected and got the dataset...")
 
