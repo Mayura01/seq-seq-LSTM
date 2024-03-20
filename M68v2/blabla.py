@@ -1,4 +1,3 @@
-import torch
 from transformers import GPT2LMHeadModel, GPT2Tokenizer
 
 def generate_sentence(input_word, temperature=0.7):
