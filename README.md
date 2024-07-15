@@ -1,2 +1,2 @@
-# Model M68
- 
+# seq-seq LSTM
+
